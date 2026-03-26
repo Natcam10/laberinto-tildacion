@@ -1,0 +1,286 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<title>Aventura de la Tildación</title>
+
+<style>
+body {
+    font-family: Arial;
+    background: linear-gradient(#667eea, #764ba2);
+    text-align: center;
+    margin: 0;
+    color: white;
+}
+
+.screen { display: none; }
+.active { display: block; }
+
+.card {
+    background: white;
+    color: black;
+    width: 340px;
+    margin: 20px auto;
+    padding: 20px;
+    border-radius: 15px;
+}
+
+#personaje {
+    font-size: 60px;
+    animation: bounce 1s infinite;
+}
+
+@keyframes bounce {
+    50% { transform: translateY(-10px); }
+}
+
+.palabra {
+    font-size: 32px;
+    margin: 15px 0;
+    font-weight: bold;
+}
+
+button {
+    display: block;
+    width: 100%;
+    margin: 6px 0;
+    padding: 10px;
+    border-radius: 10px;
+    border: none;
+    cursor: pointer;
+    font-size: 16px;
+    background: #22c55e;
+    color: white;
+}
+
+#feedback {
+    margin-top: 10px;
+    padding: 10px;
+    border-radius: 10px;
+    display: none;
+}
+
+.estrella {
+    font-size: 70px;
+    color: gold;
+}
+
+/* CONFETI */
+.confetti {
+  position: fixed;
+  width: 10px;
+  height: 10px;
+  top: -10px;
+  animation: fall 3s linear infinite;
+}
+
+@keyframes fall {
+  to {
+    transform: translateY(100vh) rotate(360deg);
+  }
+}
+</style>
+</head>
+
+<body>
+
+<h1>🎮 Aventura de la Tildación</h1>
+
+<!-- MENÚ -->
+<div id="menu" class="screen active">
+<h2>Selecciona nivel</h2>
+<button onclick="iniciar('facil')">🟢 Fácil</button>
+<button onclick="iniciar('medio')">🟡 Medio</button>
+<button onclick="iniciar('dificil')">🔴 Difícil</button>
+</div>
+
+<!-- JUEGO -->
+<div id="juego" class="screen">
+<div id="personaje">✏️</div>
+<p id="mensaje">¡Vamos a aprender!</p>
+
+<div class="card" id="card">
+<div class="palabra" id="palabra"></div>
+<div id="opciones"></div>
+<div id="feedback"></div>
+</div>
+
+<!-- BOTONES FUERA -->
+<div style="width:340px; margin: 10px auto;">
+<button onclick="finalizar()">Finalizar</button>
+<button onclick="volverMenu()" style="background:#f43f5e;">Volver al menú</button>
+</div>
+
+<h3 id="puntaje">⭐ 0 / 0</h3>
+</div>
+
+<!-- SONIDOS -->
+<audio id="ok" src="https://actions.google.com/sounds/v1/cartoon/clang_and_wobble.ogg"></audio>
+<audio id="error" src="https://actions.google.com/sounds/v1/cartoon/boing.ogg"></audio>
+
+<script>
+
+let palabras = [];
+let indice = 0;
+let puntos = 0;
+
+const base = {
+
+facil: [
+{mal:"leon", bien:"león", exp:"Aguda en n"},
+{mal:"cafe", bien:"café", exp:"Aguda en vocal"},
+{mal:"lapiz", bien:"lápiz", exp:"Grave"},
+{mal:"arbol", bien:"árbol", exp:"Grave"},
+{mal:"raton", bien:"ratón", exp:"Aguda"},
+{mal:"melon", bien:"melón", exp:"Aguda"},
+{mal:"limon", bien:"limón", exp:"Aguda"},
+{mal:"facil", bien:"fácil", exp:"Grave"},
+{mal:"dificil", bien:"difícil", exp:"Grave"},
+{mal:"papel", bien:"papel", exp:"No lleva tilde"}
+],
+
+medio: [
+{mal:"camion", bien:"camión", exp:"Aguda"},
+{mal:"musica", bien:"música", exp:"Esdrújula"},
+{mal:"telefono", bien:"teléfono", exp:"Esdrújula"},
+{mal:"corazon", bien:"corazón", exp:"Aguda"},
+{mal:"rapido", bien:"rápido", exp:"Esdrújula"},
+{mal:"logico", bien:"lógico", exp:"Esdrújula"},
+{mal:"basico", bien:"básico", exp:"Esdrújula"},
+{mal:"heroico", bien:"heroico", exp:"No lleva tilde"},
+{mal:"orden", bien:"orden", exp:"No lleva tilde"},
+{mal:"joven", bien:"joven", exp:"No lleva tilde"}
+],
+
+dificil: [
+{mal:"pais", bien:"país", exp:"Hiato"},
+{mal:"baul", bien:"baúl", exp:"Hiato"},
+{mal:"poesia", bien:"poesía", exp:"Hiato"},
+{mal:"oido", bien:"oído", exp:"Hiato"},
+{mal:"alegria", bien:"alegría", exp:"Hiato"},
+{mal:"rio", bien:"río", exp:"Hiato"},
+{mal:"sonreir", bien:"sonreír", exp:"Hiato"},
+{mal:"maiz", bien:"maíz", exp:"Hiato"},
+{mal:"raiz", bien:"raíz", exp:"Hiato"},
+{mal:"freir", bien:"freír", exp:"Hiato"}
+]
+
+};
+
+function iniciar(n){
+    palabras = base[n];
+    indice = 0;
+    puntos = 0;
+
+    document.getElementById("menu").classList.remove("active");
+    document.getElementById("juego").classList.add("active");
+
+    hablar("¡Empezamos!");
+    cargar();
+}
+
+function cargar(){
+    let p = palabras[indice];
+
+    document.getElementById("palabra").textContent = p.mal;
+
+    let opciones = [p.bien, p.mal, p.mal+"s", p.mal+"es"];
+    opciones.sort(()=>Math.random()-0.5);
+
+    let cont = document.getElementById("opciones");
+    cont.innerHTML = "";
+
+    opciones.forEach(op=>{
+        let btn = document.createElement("button");
+        btn.textContent = op;
+        btn.onclick = ()=>evaluar(op,p);
+        cont.appendChild(btn);
+    });
+
+    document.getElementById("feedback").style.display="none";
+}
+
+function evaluar(op,p){
+    let fb = document.getElementById("feedback");
+
+    if(op===p.bien){
+        puntos++;
+        fb.style.background="green";
+        fb.innerHTML="🎉 ¡Correcto!<br>"+p.exp;
+        hablar("Muy bien");
+        document.getElementById("ok").play();
+    } else {
+        fb.style.background="red";
+        fb.innerHTML="❌ Incorrecto<br>"+p.exp;
+        hablar("Intenta otra vez");
+        document.getElementById("error").play();
+    }
+
+    fb.style.display="block";
+    actualizar();
+
+    setTimeout(()=>{
+        indice++;
+        if(indice<palabras.length) cargar();
+        else finalizar();
+    },2000);
+}
+
+function actualizar(){
+    document.getElementById("puntaje").textContent =
+    "⭐ "+puntos+" / "+palabras.length;
+}
+
+function finalizar(){
+    let total = palabras.length;
+
+    if(puntos === total){
+        document.getElementById("card").innerHTML =
+        "<div class='estrella'>⭐🎉</div>" +
+        "<h2>¡FELICIDADES!</h2>" +
+        "<p>Lograste puntaje perfecto: "+puntos+"/"+total+"</p>";
+
+        hablar("¡Felicidades!");
+
+        lanzarConfeti();
+    } else {
+        document.getElementById("card").innerHTML =
+        "<h2>🏆 Puntaje final: "+puntos+" / "+total+"</h2>";
+        hablar("Juego terminado");
+    }
+}
+
+function volverMenu(){
+    location.reload();
+}
+
+/* VOZ */
+function hablar(texto){
+    document.getElementById("mensaje").textContent = texto;
+    let voz = new SpeechSynthesisUtterance(texto);
+    voz.lang = "es-ES";
+    speechSynthesis.speak(voz);
+}
+
+/* CONFETI */
+function lanzarConfeti(){
+    for(let i=0;i<60;i++){
+        let c = document.createElement("div");
+        c.classList.add("confetti");
+
+        c.style.left = Math.random()*100+"%";
+        c.style.background =
+        ["red","yellow","blue","green","pink"][Math.floor(Math.random()*5)];
+
+        c.style.animationDuration = (Math.random()*3+2)+"s";
+
+        document.body.appendChild(c);
+
+        setTimeout(()=>c.remove(),4000);
+    }
+}
+
+</script>
+
+</body>
+</html>
